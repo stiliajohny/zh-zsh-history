@@ -307,6 +307,22 @@ Status values: `Planned`, `In Progress`, `Blocked`, `Done`. Each new feature/bug
 - Validation: Checked `README.md` and `docs/install.md` against `.gitignore` (`.venv/` ignored), `pyproject.toml` (script `zh`, extras `sync` and `server`), and `zsh/hooks.zsh` (returns when `zh` is not on `PATH`). Pytest was not run; the change is documentation.
 - Notes: pipx keeps its own environment and puts `zh` in `~/.local/bin` by default.
 
+**ZH-029: Fix import order and add pre-commit**
+
+- Priority: P1 | Status: Done | Dependencies: ZH-011
+- Scope: Rewrite the multi-line imports Ruff rejects, and add a pre-commit config that runs the same `ruff check` as CI on staged Python files. Install `pre-commit` with the `dev` extra. Document how to turn the hook on in this checkout.
+- Acceptance: `python -m ruff check src tests server` is clean. `.pre-commit-config.yaml` runs Ruff 0.17.5, the same pin as the `dev` extra. `README.md` and `docs/install.md` say to run `pre-commit install` after the `dev` extra. The hook does not format unrelated files.
+- Validation: `python -m ruff check src tests server` clean. `pre-commit install` wrote `.git/hooks/pre-commit`. `pre-commit run --all-files` — ruff check passed. `python -m pytest -q` — 60 passed, 1 skipped.
+- Notes: The hook is `ruff-check` with `--fix`. Ruff is pinned to 0.17.5 in `pyproject.toml` and in the hook `rev`. Bump both together. The formatter hook is not enabled.
+
+**ZH-030: Install the plugin under Oh My Zsh custom**
+
+- Priority: P1 | Status: Done | Dependencies: ZH-001, ZH-028
+- Scope: Change the Git install in `README.md` and `docs/install.md`. Clone into `$ZSH_CUSTOM/zh-zsh-history` (`~/.oh-my-zsh/custom` when `ZSH_CUSTOM` is unset). Link the clone's `zsh/` directory as `$ZSH_CUSTOM/plugins/zh`, because Oh My Zsh loads `plugins/zh/zh.plugin.zsh` and that file lives in `zsh/` beside `hooks.zsh`, `history.zsh`, and `completions/`. `pipx install --editable` still installs the `zh` command. A shell without Oh My Zsh clones under `~/.local/share` and sources `zsh/zh.plugin.zsh`.
+- Acceptance: Neither install page tells the reader to clone into `$HOME/zh-zsh-history`. Both pages show the custom-directory clone, the directory link, `pipx install --editable`, and `zh` in `plugins=(...)` with no extra `source`. Both pages still show a source line for a shell that does not use Oh My Zsh. The hook still requires `zh` on `PATH`.
+- Validation: Checked `README.md` and `docs/install.md` against `zsh/zh.plugin.zsh` (`${0:A:h}` resolves the link and sources `hooks.zsh` and `history.zsh` beside the real file; completions load from that directory). Pytest was not run; the change is documentation.
+- Notes: A clone placed directly in `plugins/zh` would leave `zh.plugin.zsh` at `plugins/zh/zsh/zh.plugin.zsh`, which Oh My Zsh does not load. The `plugins=(git zh)` line is the stock Oh My Zsh list with `zh` added.
+
 ### M5 — Release
 
 **ZH-011: Hardening and release**
@@ -349,6 +365,8 @@ None.
 - ZH-026: Link the docs from the README
 - ZH-027: Document the Git install and ~/.zshrc lines
 - ZH-028: Install the command with pipx, not a repo virtualenv
+- ZH-029: Fix import order and add pre-commit
+- ZH-030: Install the plugin under Oh My Zsh custom
 
 ## Task log
 
@@ -375,6 +393,8 @@ None.
 | 2026-11-19 | ZH-026        | Link the docs from the README               | README.md, PLAN.md                                                                                                                                        | `docs/` contains install, sync, security, and release. Each is linked from the Documentation section. Pytest was not run; the change is documentation.                                                                   | None         |
 | 2026-11-19 | ZH-027        | Document the Git install and ~/.zshrc lines | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `pyproject.toml` and `zsh/zh.plugin.zsh`. Pytest was not run; the change is documentation. The GitHub remote is empty until the first push.                                                   | None         |
 | 2026-11-19 | ZH-028        | Install zh with pipx, not a repo virtualenv | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `.gitignore`, `pyproject.toml`, and `zsh/hooks.zsh`. Pytest was not run; the change is documentation.                                                                                         | None         |
+| 2026-11-19 | ZH-029        | Fix import order and add pre-commit         | src/zh/cli.py, tests/unit/test_database.py, .pre-commit-config.yaml, pyproject.toml, README.md, docs/install.md, docs/release.md                          | `python -m ruff check src tests server` clean. `pre-commit run --all-files` passed. `python -m pytest -q` — 60 passed, 1 skipped.                                                                                        | None         |
+| 2026-11-19 | ZH-030        | Install the plugin under Oh My Zsh custom   | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `zsh/zh.plugin.zsh`. Pytest was not run; the change is documentation.                                                                                                                         | None         |
 
 ## Template for newly discovered work
 

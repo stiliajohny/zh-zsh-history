@@ -6,7 +6,7 @@ ZH is a local Zsh command journal. Each interactive command is written to SQLite
 
 ## Documentation
 
-- [Install](docs/install.md) covers the Git clone, the pipx install, the `~/.zshrc` line, tab completion, and uninstall.
+- [Install](docs/install.md) covers the Oh My Zsh plugin directory, the pipx install, a shell without Oh My Zsh, tab completion, and uninstall.
 - [Sync](docs/sync.md) covers starting the API, registering a device, and where the tokens and `DATABASE_URL` are stored.
 - [Security](docs/security.md) covers what is stored, output capture, history import, and API authentication.
 - [Release](docs/release.md) lists the checks to run before a release.
@@ -17,23 +17,26 @@ Python 3.11 or newer, and Zsh. `fzf` is optional and is used only by `zh search 
 
 ## Install from Git
 
-pipx installs the `zh` command into its own environment and links it on `PATH`. That environment is not in the clone, and it is not committed. The Zsh plugin stays in the clone, so `~/.zshrc` sources that file. The base package has no third-party dependencies.
+pipx installs the `zh` command into its own environment and links it on `PATH`. That environment is not in the clone, and it is not committed. The clone lives in the Oh My Zsh custom directory. Oh My Zsh loads `$ZSH_CUSTOM/plugins/zh/zh.plugin.zsh`. This repository keeps that file in `zsh/`, beside `hooks.zsh`, `history.zsh`, and `completions/`, so the `zsh` directory is linked as the `zh` plugin. The base package has no third-party dependencies.
 
 ```bash
-git clone https://github.com/stiliajohny/zh-zsh-history.git "$HOME/zh-zsh-history"
-pipx install --editable "$HOME/zh-zsh-history"
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+git clone https://github.com/stiliajohny/zh-zsh-history.git "$ZSH_CUSTOM/zh-zsh-history"
+mkdir -p "$ZSH_CUSTOM/plugins"
+ln -sfn "$ZSH_CUSTOM/zh-zsh-history/zsh" "$ZSH_CUSTOM/plugins/zh"
+pipx install --editable "$ZSH_CUSTOM/zh-zsh-history"
 ```
 
-SSH works the same way: `git clone git@github.com:stiliajohny/zh-zsh-history.git "$HOME/zh-zsh-history"`.
+SSH works the same way: `git clone git@github.com:stiliajohny/zh-zsh-history.git "$ZSH_CUSTOM/zh-zsh-history"`.
 
-pipx puts `zh` in `~/.local/bin`. Add this to `~/.zshrc` when that directory is not already on `PATH`, before the plugin:
+pipx puts `zh` in `~/.local/bin`. Add the `PATH` line to `~/.zshrc` when that directory is not already on `PATH`. Add `zh` to the existing `plugins=(...)` line. The line below is a stock Oh My Zsh list with `zh` added. Keep any other names already on that line. Do not also `source` the plugin.
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
-source "$HOME/zh-zsh-history/zsh/zh.plugin.zsh"
+plugins=(git zh)
 ```
 
-Open a new terminal. A new shell records commands only when `zh` is on `PATH`. When `zh` is missing, the hook returns and the shell continues.
+Open a new terminal. A new shell records commands only when `zh` is on `PATH`. When `zh` is missing, the hook returns and the shell continues. A shell that does not use Oh My Zsh clones under `~/.local/share` and sources the plugin. Those steps are in [docs/install.md](docs/install.md).
 
 `pipx inject zh httpx` adds the sync client. `pipx inject zh fastapi uvicorn httpx 'psycopg[binary]'` adds the API packages. Those match the `sync` and `server` extras. The API is started with `zh-server`.
 
@@ -41,28 +44,24 @@ Open a new terminal. A new shell records commands only when `zh` is on `PATH`. W
 
 ## This checkout
 
-`.venv/` is gitignored. It is only for tests and lint in this repository. Do not put it on `PATH` in `~/.zshrc`. The `dev` extra installs pytest, Ruff, httpx, and FastAPI:
+`.venv/` is gitignored. It is only for tests and lint in this repository. Do not put it on `PATH` in `~/.zshrc`. The `dev` extra installs pytest, Ruff 0.17.5, pre-commit, httpx, and FastAPI:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+pre-commit install
 ```
 
-To record commands from this checkout, use the pipx install above with this directory in place of `$HOME/zh-zsh-history`, and source `zsh/zh.plugin.zsh` from here.
+`pre-commit install` runs Ruff on staged Python files before each commit and applies Ruff's fixes. The same lint command is `python -m ruff check src tests server`.
+
+To record commands from this checkout, run `pipx install --editable` on this directory and source `zsh/zh.plugin.zsh` from here.
 
 ## Load the plugin
 
 The plugin lasts for the shell that sources it. Sourcing it again in that shell does nothing until `ZH_PLUGIN_LOADED` is unset. `HISTFILE`, keybindings, and existing hooks stay as they are.
 
-Oh My Zsh loads the same file when `zh` is listed in `plugins`. Keep `~/.local/bin` on `PATH`. Do not also `source` the plugin. Link the real plugin file, add `zh` to `plugins=(...)`, and open a new shell.
-
-```bash
-mkdir -p "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zh"
-ln -sfn "$HOME/zh-zsh-history/zsh/zh.plugin.zsh" "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zh/zh.plugin.zsh"
-```
-
-The plugin resolves that link and loads `hooks.zsh` and `history.zsh` from the directory that contains the real `zh.plugin.zsh`. Keep those files beside it.
+Oh My Zsh loads `plugins/zh/zh.plugin.zsh` when `zh` is listed in `plugins`. The install above links the clone's `zsh` directory to that path. The plugin resolves the link and loads `hooks.zsh`, `history.zsh`, and `completions/` from the real directory. Keep `~/.local/bin` on `PATH`. Do not also `source` the plugin.
 
 Aliases `zhs`, `zht`, `zhf`, `zhr`, and `zhy` are defined only when those names are free. They run `zh search`, `zh top`, `zh failed`, `zh recent`, and `zh stats`.
 
