@@ -11,8 +11,15 @@ from pathlib import Path
 
 import pytest
 
-from zh.database import (_apply_v1, connect, default_db_path, get_command,
-                         init_db, migrate, record_command)
+from zh.database import (
+    _apply_v1,
+    connect,
+    default_db_path,
+    get_command,
+    init_db,
+    migrate,
+    record_command,
+)
 
 STARTED = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)
 

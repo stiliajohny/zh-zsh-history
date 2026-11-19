@@ -3,6 +3,7 @@
 Run these from a virtual environment that has the `dev` extra installed, and `zsh` on `PATH`.
 
 - `python -m ruff check src tests server`
+- `pre-commit run --all-files` after `pre-commit install`
 - `python -m pytest -q`
 - `zsh -n zsh/zh.plugin.zsh`
 - `zsh -n zsh/hooks.zsh`

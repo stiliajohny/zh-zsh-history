@@ -15,11 +15,18 @@ from pathlib import Path
 from zh.analytics import failed_commands, recent_commands, stats, top_commands
 from zh.browser import serve
 from zh.capture import load_output, record_pty
-from zh.config import (load_config, public_config, refresh_sync_marker,
-                       save_config)
-from zh.database import (connect, default_db_path, get_command, init_db,
-                         iter_commands, list_devices, list_outputs,
-                         record_command, sync_counts)
+from zh.config import load_config, public_config, refresh_sync_marker, save_config
+from zh.database import (
+    connect,
+    default_db_path,
+    get_command,
+    init_db,
+    iter_commands,
+    list_devices,
+    list_outputs,
+    record_command,
+    sync_counts,
+)
 from zh.doctor import doctor
 from zh.hooks import finish as hook_finish
 from zh.hooks import mark_history, pending_history, session, start
@@ -27,8 +34,14 @@ from zh.output import output_dir
 from zh.schedule import install_units, uninstall_units
 from zh.search import search_commands
 from zh.security import REGEX_LIMIT
-from zh.sync import (SyncError, list_remote_devices, register_device,
-                     revoke_device, sync_kick, sync_once)
+from zh.sync import (
+    SyncError,
+    list_remote_devices,
+    register_device,
+    revoke_device,
+    sync_kick,
+    sync_once,
+)
 from zh.zsh_history import default_zsh_history_path, import_zsh_history
 
 SCALAR_KEYS = {
