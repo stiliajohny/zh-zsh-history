@@ -14,7 +14,7 @@ from pathlib import Path
 
 from zh.analytics import failed_commands, recent_commands, stats, top_commands
 from zh.browser import serve
-from zh.capture import load_output, record_pty
+from zh.capture import begin_session_capture, load_output, record_pty
 from zh.config import load_config, public_config, refresh_sync_marker, save_config
 from zh.database import (
     connect,
@@ -49,6 +49,7 @@ SCALAR_KEYS = {
     "server_url",
     "ignore_space",
     "retention_days",
+    "capture_output",
     "output_max_bytes",
     "tombstone_days",
     "sync_batch_size",
@@ -56,7 +57,7 @@ SCALAR_KEYS = {
     "device_id",
 }
 LIST_KEYS = {"exclude_regex", "env_allowlist"}
-BOOL_KEYS = {"sync_enabled", "ignore_space", "paused"}
+BOOL_KEYS = {"sync_enabled", "ignore_space", "paused", "capture_output"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -217,6 +218,7 @@ def _show(args: argparse.Namespace, database: Path) -> int:
         print(f"host: {body.get('hostname') or ''}")
         print(f"user: {body.get('username') or ''}")
         print(f"started: {body['started_at']}")
+        print(f"output: {_output_label(outputs)}")
     if args.output:
         for output in outputs:
             sys.stdout.buffer.write(load_output(path, output["relative_path"]))
@@ -480,6 +482,19 @@ def _import_json(connection: sqlite3.Connection, source: Path) -> int:
     return imported
 
 
+def _output_label(outputs: list[dict]) -> str:
+    """Describe stored output without printing it."""
+    kept = [item for item in outputs if not item.get("deleted_at")]
+    if not kept:
+        return "not stored"
+    size = sum(int(item["size_bytes"]) for item in kept)
+    if any(item["truncated"] for item in kept):
+        return f"{size} bytes, truncated"
+    if size == 0:
+        return "empty"
+    return f"{size} bytes"
+
+
 def _exit_label(body: dict) -> str:
     """Return a short exit label. A finished command with no code is unknown."""
     if body["exit_code"] is not None:
@@ -501,6 +516,12 @@ def _hook(args: argparse.Namespace, database: Path) -> int:
         command_id = start(database, args.session, args.cwd or str(Path.cwd()), command)
         if command_id:
             print(command_id)
+            if args.capture:
+                started = begin_session_capture(database, command_id)
+                if started:
+                    slave, capture_pid = started
+                    print(slave)
+                    print(capture_pid)
         return 0
     if action == "finish":
         if args.exit_code is None or not args.id:
@@ -672,6 +693,7 @@ def _parser() -> argparse.ArgumentParser:
         "hook_action",
         choices=["session", "start", "finish", "pending-history", "mark-history", "sync-kick"],
     )
+    hook.add_argument("--capture", action="store_true")
     hook.add_argument("--session", default="")
     hook.add_argument("--cwd", default="")
     hook.add_argument("--id", default="")

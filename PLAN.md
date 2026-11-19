@@ -323,6 +323,22 @@ Status values: `Planned`, `In Progress`, `Blocked`, `Done`. Each new feature/bug
 - Validation: Checked `README.md` and `docs/install.md` against `zsh/zh.plugin.zsh` (`${0:A:h}` resolves the link and sources `hooks.zsh` and `history.zsh` beside the real file; completions load from that directory). Pytest was not run; the change is documentation.
 - Notes: A clone placed directly in `plugins/zh` would leave `zh.plugin.zsh` at `plugins/zh/zsh/zh.plugin.zsh`, which Oh My Zsh does not load. The `plugins=(git zh)` line is the stock Oh My Zsh list with `zh` added.
 
+**ZH-032: Store command stdout from the plugin**
+
+- Priority: P0 | Status: Done | Dependencies: ZH-003, ZH-010, ZH-012
+- Scope: When `capture_output` is on (the default), an interactive command's stdout and stderr are copied through a PTY and stored as the existing size-limited gzip output. The shell does not `eval` the command. The prompt is not held for the file write. Full-screen programs that need one terminal for input and output can be wrong because stdin stays on the real terminal. `capture_output false` leaves ordinary commands unchanged. The history page shows the stored text as text. Output bytes stay local and are not pushed.
+- Acceptance: `echo` and a stderr write from a terminal Zsh session are in the journal output and still appear on the terminal. A non-terminal shell does not redirect. `capture_output false` stores the command and no output file. A capture larger than `output_max_bytes` is marked truncated and the terminal still receives the rest. The command page shows the output as text. Existing hook tests still store exit codes.
+- Validation: `python -m ruff check src tests server` clean. `python -m pytest -q` — 65 passed, 2 skipped. `zsh -n zsh/hooks.zsh zsh/zh.plugin.zsh` passed. A `script` session stored `ZH_STDOUT_SENTINEL` and `ZH_STDERR_SENTINEL` and both still appeared on the terminal.
+- Notes: The recorder keeps a slave descriptor until the shell sends SIGUSR1. Output is not synced. Restart `zh browse` after updating. A shell that already loaded the plugin must start again, or `unset ZH_PLUGIN_LOADED` and source the plugin.
+
+**ZH-031: Hide the sync-kick job report**
+
+- Priority: P1 | Status: Done | Dependencies: ZH-003, ZH-006
+- Scope: Disown the background `zh _hook sync-kick` in `zsh/hooks.zsh` so an interactive shell does not print the job number or the `done` line. The kick still runs after each command when `zh` is on `PATH`, and it still returns immediately.
+- Acceptance: An interactive Zsh session with job control on does not print `sync-kick` after `zh_precmd`. Existing hook tests still store commands and exit codes. `zsh -n zsh/hooks.zsh` passes.
+- Validation: `.venv/bin/pytest tests/zsh/test_shell_record.py -q` — 4 passed. The new test runs under `script` so job control is on, sees a `done` line for an ordinary background job, and sees no `sync-kick` line after `zh_precmd`. `zsh -n zsh/hooks.zsh` passed. `python -m ruff check tests/zsh/test_shell_record.py` passed.
+- Notes: `&!` disowns the process. Redirecting stdout does not hide Zsh's job report.
+
 ### M5 — Release
 
 **ZH-011: Hardening and release**
@@ -367,6 +383,8 @@ None.
 - ZH-028: Install the command with pipx, not a repo virtualenv
 - ZH-029: Fix import order and add pre-commit
 - ZH-030: Install the plugin under Oh My Zsh custom
+- ZH-031: Hide the sync-kick job report
+- ZH-032: Store command stdout from the plugin
 
 ## Task log
 
@@ -395,6 +413,8 @@ None.
 | 2026-11-19 | ZH-028        | Install zh with pipx, not a repo virtualenv | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `.gitignore`, `pyproject.toml`, and `zsh/hooks.zsh`. Pytest was not run; the change is documentation.                                                                                         | None         |
 | 2026-11-19 | ZH-029        | Fix import order and add pre-commit         | src/zh/cli.py, tests/unit/test_database.py, .pre-commit-config.yaml, pyproject.toml, README.md, docs/install.md, docs/release.md                          | `python -m ruff check src tests server` clean. `pre-commit run --all-files` passed. `python -m pytest -q` — 60 passed, 1 skipped.                                                                                        | None         |
 | 2026-11-19 | ZH-030        | Install the plugin under Oh My Zsh custom   | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `zsh/zh.plugin.zsh`. Pytest was not run; the change is documentation.                                                                                                                         | None         |
+| 2026-11-19 | ZH-031        | Hide the sync-kick job report               | zsh/hooks.zsh, tests/zsh/test_shell_record.py, README.md, PLAN.md                                                                                         | `.venv/bin/pytest tests/zsh/test_shell_record.py -q` — 4 passed. `zsh -n zsh/hooks.zsh` passed. Ruff clean for the test file.                                                                                            | None         |
+| 2026-11-19 | ZH-032        | Store command stdout from the plugin        | zsh/hooks.zsh, src/zh/capture.py, cli.py, hooks.py, browser.py, config.py, doctor.py, static/browse.js, tests, README.md, docs/security.md                | `python -m ruff check src tests server` clean. `python -m pytest -q` — 65 passed, 2 skipped. A script session stored stdout and stderr and still showed both.                                                            | None         |
 
 ## Template for newly discovered work
 

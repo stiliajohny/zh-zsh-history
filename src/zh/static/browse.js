@@ -442,6 +442,21 @@ function renderDetail(item) {
   bar.className = "terminal-bar";
   bar.textContent = "command";
   terminal.append(bar, command);
+  const outputTerminal = document.createElement("div");
+  outputTerminal.className = "terminal";
+  const outputBar = document.createElement("p");
+  outputBar.className = "terminal-bar";
+  outputBar.textContent = item.output_truncated ? "output truncated" : "output";
+  const output = document.createElement("pre");
+  output.id = "command-output";
+  if (item.output == null) {
+    output.textContent = "Output was not stored.";
+  } else if (item.output === "") {
+    output.textContent = "No output.";
+  } else {
+    output.textContent = item.output;
+  }
+  outputTerminal.append(outputBar, output);
   const list = document.createElement("dl");
   addPair(list, "Exit code", exitText(item));
   addPair(list, "Started", formatTime(item.started_at));
@@ -456,7 +471,7 @@ function renderDetail(item) {
   addPair(list, "User", item.username || "Unknown");
   addPair(list, "Session", item.session_id || "None");
   addPair(list, "Id", item.id);
-  detail.append(head, terminal, list);
+  detail.append(head, terminal, outputTerminal, list);
 }
 
 function renderMessage(message) {

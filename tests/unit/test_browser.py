@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 from zh.browser import bind_host, create_server
-from zh.database import connect, init_db, record_command
+from zh.database import add_output, connect, init_db, record_command
+from zh.output import output_dir, write_output
 
 ROOT = Path(__file__).resolve().parents[2]
 STARTED = datetime(2026, 11, 18, 12, 0, tzinfo=UTC)
@@ -114,6 +115,27 @@ def test_api_searches_without_executing(browser) -> None:
     assert json.loads(detail)["cwd"] == "/work"
     assert json.loads(detail)["hostname"] == "origin-host"
     assert json.loads(detail)["username"] == "origin-user"
+    assert json.loads(detail)["output"] is None
+    write_output(output_dir(_path), f"{command_id}.gz", b"<script>alert(2)</script>\nline")
+    connection = connect(_path)
+    try:
+        add_output(
+            connection,
+            command_id=command_id,
+            relative_path=f"{command_id}.gz",
+            size_bytes=len(b"<script>alert(2)</script>\nline"),
+            truncated=False,
+        )
+    finally:
+        connection.close()
+    stored_status, _stored_headers, stored = request(f"{base}/api/commands/{command_id}")
+    stored_body = json.loads(stored)
+    assert stored_status == 200
+    assert stored_body["output"] == "<script>alert(2)</script>\nline"
+    assert stored_body["output_truncated"] is False
+    page_script = request(f"{base}/static/browse.js")[2].decode("utf-8")
+    assert 'output.id = "command-output"' in page_script
+    assert "textContent = item.output" in page_script
     assert payload["items"][0]["hostname"] == "origin-host"
     assert payload["items"][0]["username"] == "origin-user"
     assert "Host" in request(f"{base}/static/browse.js")[2].decode("utf-8")

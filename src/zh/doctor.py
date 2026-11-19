@@ -59,6 +59,8 @@ def doctor(db_path: Path) -> tuple[int, list[str]]:
     if config:
         shown = public_config(config)
         lines.append(f"Sync enabled: {shown.get('sync_enabled')}. Paused: {shown.get('paused')}.")
+        capture = "on" if shown.get("capture_output") else "off"
+        lines.append(f"Command output capture: {capture}.")
         if shown.get("device_token") == "***":
             lines.append("Device token is stored and is not shown.")
         server = str(shown.get("server_url") or "")

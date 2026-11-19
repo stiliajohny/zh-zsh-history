@@ -16,6 +16,7 @@ DEFAULTS = {
     "paused": False,
     "env_allowlist": [],
     "retention_days": None,
+    "capture_output": True,
     "output_max_bytes": 1_048_576,
     "tombstone_days": 30,
     "sync_batch_size": 500,
@@ -96,6 +97,7 @@ def _normalize(config: dict) -> dict:
     merged["sync_enabled"] = bool(merged["sync_enabled"])
     merged["ignore_space"] = bool(merged["ignore_space"])
     merged["paused"] = bool(merged["paused"])
+    merged["capture_output"] = bool(merged["capture_output"])
     merged["exclude_regex"] = [str(item) for item in merged["exclude_regex"]]
     merged["env_allowlist"] = [str(item) for item in merged["env_allowlist"]]
     merged["server_url"] = str(merged["server_url"] or "")

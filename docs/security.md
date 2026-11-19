@@ -14,7 +14,11 @@ The device token is stored in plaintext in that config file. The bootstrap token
 
 ## Output
 
-`zh record -- COMMAND` is the only output capture. Ordinary shell commands record the command text and metadata, not the output. The PTY mixes stdout and stderr, is not an interactive user terminal, and keeps at most `output_max_bytes` (default 1048576). The bytes are gzip files under an `outputs` directory next to the journal, mode `0600`. They are not encrypted. A privacy filter can refuse to store the command while the command itself still runs. `zh show ID --output` reads one local capture. Paths that leave the output directory are rejected.
+Interactive commands store stdout and stderr when `capture_output` is true, which is the default. The shell redirects the command's output to a PTY and a recorder copies every byte back to the terminal. The stored copy keeps at most `output_max_bytes` (default 1048576) and is marked truncated past that. The bytes are gzip files under an `outputs` directory next to the journal, mode `0600`. They are not encrypted and they are not synced. A shell whose stdout is not a terminal does not redirect. `zh config set capture_output false` leaves ordinary commands on the real terminal and stores no output file.
+
+The PTY mixes stdout and stderr. Stdin stays on the real terminal, so a full-screen program that needs one device for the keyboard and the screen can be wrong. The command text is not passed to `eval`. A privacy filter can refuse to store the command, and then its output is not stored either. Output that is stored can still contain secrets printed by the command. `zh show ID --output` reads one local capture. The history page shows that text as text. Paths that leave the output directory are rejected.
+
+`zh record -- COMMAND` runs a command in its own PTY and stores the same kind of file. That PTY is not an interactive user terminal. A privacy filter can refuse to store the command while the command itself still runs.
 
 `zh clean` deletes commands older than the retention setting and removes local output files for those commands. Deletion writes a tombstone. Tombstones stay pending until sync acknowledges them, then expire after `tombstone_days` (default 30). `zh devices revoke` drops a remote device token.
 

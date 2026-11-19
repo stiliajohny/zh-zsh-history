@@ -11,7 +11,8 @@ from importlib.resources import files
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from zh.database import connect, get_command, init_db
+from zh.capture import load_output
+from zh.database import connect, get_command, init_db, list_outputs
 from zh.search import command_activity, command_stats, search_commands
 
 
@@ -184,9 +185,13 @@ def make_handler(db_path: Path) -> type[BaseHTTPRequestHandler]:
                 raise BadRequest("command id must be a UUID")
             with _session(journal) as connection:
                 body = get_command(connection, command_id)
+                outputs = list_outputs(connection, command_id) if body else []
             if body is None:
                 self._json(404, {"error": "Not found."})
                 return
+            text, truncated = _output_text(journal, outputs)
+            body["output"] = text
+            body["output_truncated"] = truncated
             self._json(200, body)
 
         def _static(self, name: str, content_type: str) -> None:
@@ -239,6 +244,24 @@ class _Session:
         del exc_type, exc, traceback
         if self.connection is not None:
             self.connection.close()
+
+
+def _output_text(db_path: Path, outputs: list[dict]) -> tuple[str | None, bool]:
+    """Return stored command output as text, and whether the capture was cut short."""
+    kept = [item for item in outputs if not item.get("deleted_at")]
+    if not kept:
+        return None, False
+    chunks: list[bytes] = []
+    truncated = False
+    for item in kept:
+        truncated = truncated or bool(item["truncated"])
+        try:
+            chunks.append(load_output(db_path, item["relative_path"]))
+        except (OSError, ValueError):
+            continue
+    if not chunks:
+        return None, truncated
+    return b"".join(chunks).decode("utf-8", "replace"), truncated
 
 
 def _session(path: Path) -> _Session:

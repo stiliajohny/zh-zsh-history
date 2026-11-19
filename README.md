@@ -77,9 +77,9 @@ Uninstall steps are in [docs/install.md](docs/install.md).
 
 On `preexec` the plugin asks `zh` to store the command as it was typed. On `precmd` it stores the exit code captured before other precmd hooks run. A stored row has the command text, start and end time, exit code, duration, working directory, session, hostname, username, and the Git branch and commit when the working directory is inside a repository. Environment values are stored only for names in `env_allowlist`. That list is empty until you add names, so the environment is omitted.
 
-A command is skipped while recording is paused, when it is empty, when it starts with a space (`ignore_space` defaults to true), or when it matches an `exclude_regex` pattern. `zh pause` and `zh resume` stop and start new recording. A locked journal is written to a spool and stored on a later command. The hook waits at most 0.2 seconds on the database and does not wait on the network. A background sync starts only after sync is configured.
+A command is skipped while recording is paused, when it is empty, when it starts with a space (`ignore_space` defaults to true), or when it matches an `exclude_regex` pattern. `zh pause` and `zh resume` stop and start new recording. A locked journal is written to a spool and stored on a later command. The hook waits at most 0.2 seconds on the database and does not wait on the network. A background sync starts only after sync is configured. That process is disowned, so the shell does not print a job line for it.
 
-Ordinary recording stores the command text and its metadata. `zh record -- COMMAND` is the output capture: it runs the command in a PTY and keeps a size-limited gzip file. Limits and the history-import crash window are in [docs/security.md](docs/security.md).
+On a terminal, the plugin also stores that command's stdout and stderr. The shell does not re-run the command. The terminal still shows the full stream. The stored copy is a gzip file next to the journal and stops at `output_max_bytes` (default 1048576). `zh show ID --output` prints one capture, and the history page shows the same text. `zh config set capture_output false` turns capture off. A shell whose stdout is not a terminal does not capture. Output stays on this machine; sync does not upload it. Full-screen programs can misbehave, because their output is a separate PTY while the keyboard stays on your terminal. `zh record -- COMMAND` runs a command only to capture it. Limits and the history-import crash window are in [docs/security.md](docs/security.md).
 
 ## Settings
 
@@ -92,6 +92,7 @@ zh config set exclude_regex 'SECRET'
 zh config unset exclude_regex 'SECRET'
 zh config set env_allowlist EDITOR
 zh config set retention_days 90
+zh config set capture_output false
 zh config set output_max_bytes 1048576
 ```
 

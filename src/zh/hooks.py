@@ -13,6 +13,7 @@ from pathlib import Path
 
 from zh.config import load_config
 from zh.database import (
+    add_output,
     complete_command,
     connect,
     ensure_local_device,
@@ -23,6 +24,7 @@ from zh.database import (
 )
 from zh.gitinfo import read_git_metadata
 from zh.history import mark_history_import, prepare_history_import
+from zh.output import output_dir, write_output
 from zh.security import filter_environment, rejection_reason
 
 HOOK_TIMEOUT = 0.2
@@ -71,6 +73,35 @@ def start(db_path: Path, session_id: str, cwd: str, command: str) -> str | None:
     except sqlite3.OperationalError:
         _write_spool(db_path, payload)
     return command_id
+
+
+def attach_output(db_path: Path, command_id: str, payload: bytes, truncated: bool) -> None:
+    """Store captured stdout and stderr for a command already in the journal."""
+    relative = f"{command_id}.gz"
+    write_output(output_dir(db_path), relative, payload)
+    row = {
+        "op": "output",
+        "id": command_id,
+        "relative_path": relative,
+        "size_bytes": len(payload),
+        "truncated": bool(truncated),
+    }
+    try:
+        path = init_db(db_path)
+        connection = connect(path, timeout=2)
+        try:
+            _flush_spool(connection, _spool_dir(path))
+            add_output(
+                connection,
+                command_id=command_id,
+                relative_path=relative,
+                size_bytes=len(payload),
+                truncated=truncated,
+            )
+        finally:
+            connection.close()
+    except (sqlite3.OperationalError, sqlite3.IntegrityError):
+        _write_spool(db_path, row)
 
 
 def finish(db_path: Path, command_id: str, exit_code: int) -> None:
@@ -174,6 +205,20 @@ def _flush_spool(connection: sqlite3.Connection, directory: Path) -> None:
                 record_command(connection, device_id=device_id, **_start_fields(payload))
             except sqlite3.IntegrityError:
                 connection.rollback()
+            path.unlink()
+            continue
+        if payload["op"] == "output":
+            try:
+                add_output(
+                    connection,
+                    command_id=payload["id"],
+                    relative_path=payload["relative_path"],
+                    size_bytes=int(payload["size_bytes"]),
+                    truncated=bool(payload["truncated"]),
+                )
+            except sqlite3.IntegrityError:
+                connection.rollback()
+                return
             path.unlink()
             continue
         if payload["op"] == "finish":
