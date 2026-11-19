@@ -1,0 +1,1 @@
+"""ZH sync application."""

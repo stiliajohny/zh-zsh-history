@@ -1,0 +1,6 @@
+---
+description: Mandatory ZH agent workflow and roadmap maintenance
+alwaysApply: true
+---
+
+Read `AGENTS.md` and `PLAN.md` before implementing changes. Follow the mandatory workflow in `AGENTS.md`. Record every new feature, bug or discovered requirement in `PLAN.md` before implementation, mark work In Progress, validate it, and update status, evidence and next steps afterward. Do not create roadmap entries for routine shell commands. Preserve native ZSH and Oh My Zsh behaviour, offline-first capture and non-blocking network operations.

@@ -1,0 +1,6 @@
+[Unit]
+Description=Sync the ZH command journal
+
+[Service]
+Type=oneshot
+ExecStart=zh sync

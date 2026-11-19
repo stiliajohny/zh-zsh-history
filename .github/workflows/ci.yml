@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      - name: Install the package
+        run: python -m pip install -e ".[dev]"
+      - name: Lint
+        run: python -m ruff check src tests server
+      - name: Test
+        run: python -m pytest -q
+      - name: Check zsh syntax
+        run: zsh -n zsh/zh.plugin.zsh && zsh -n zsh/hooks.zsh && zsh -n zsh/history.zsh && zsh -n zsh/completions/_zh

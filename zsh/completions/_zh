@@ -1,0 +1,108 @@
+#compdef zh
+
+_zh_commands() {
+  local -a commands
+  commands=(
+    'init:Create the local journal'
+    'browse:Serve the loopback history browser'
+    'search:Search stored commands'
+    'recent:Show recent commands'
+    'top:Show repeated commands'
+    'failed:Show failed commands'
+    'stats:Count commands by state'
+    'show:Show one command'
+    'record:Record a command through a pseudoterminal'
+    'sync:Synchronise, or install the scheduler'
+    'status:Show journal and sync status'
+    'devices:List, register, or revoke devices'
+    'config:Read or change local settings'
+    'pause:Stop recording commands'
+    'resume:Resume recording commands'
+    'doctor:Check the local install'
+    'clean:Delete old commands'
+    'export:Write commands as JSON lines'
+    'import:Read JSON lines or the current Zsh history'
+  )
+  _describe 'command' commands
+}
+
+_zh() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a common
+  common=(
+    '--db[Journal path]:database:_files'
+    '--json[Print JSON]'
+  )
+  _arguments -C \
+    "${common[@]}" \
+    '1:command:_zh_commands' \
+    '*::arg:->args'
+  case "$state" in
+    args)
+      case "$words[1]" in
+        browse)
+          _arguments "${common[@]}" \
+            '--host[Loopback address]' \
+            '--port[TCP port]'
+          ;;
+        search)
+          _arguments "${common[@]}" \
+            '1:query:' \
+            '--since[Start time]' \
+            '--until[End time]' \
+            '--device[Device id]' \
+            '--cwd[Directory]:directory:_files -/' \
+            '--exit-code[Exit code]' \
+            '--status[Status]:status:(all failed ok running)' \
+            '--limit[Maximum rows]' \
+            '--fzf[Choose with fzf]'
+          ;;
+        show)
+          _arguments "${common[@]}" \
+            '1:command id:' \
+            '--output[Print stored output]'
+          ;;
+        record)
+          _arguments "${common[@]}" '*::command:_normal'
+          ;;
+        sync)
+          _arguments "${common[@]}" \
+            '1:action:(install uninstall)' \
+            '--home[Home directory]:directory:_files -/' \
+            '--platform[Platform name]'
+          ;;
+        devices)
+          _arguments "${common[@]}" \
+            '1:action:(register revoke)' \
+            '2:device id:' \
+            '--server[Server URL]' \
+            '--name[Device name]' \
+            '--bootstrap-token[Bootstrap token]'
+          ;;
+        config)
+          _arguments "${common[@]}" \
+            '1:action:(set get unset)' \
+            '2:key:(sync_enabled server_url device_token device_id ignore_space paused exclude_regex env_allowlist retention_days output_max_bytes tombstone_days sync_batch_size)' \
+            '3:value:'
+          ;;
+        clean)
+          _arguments "${common[@]}" '--older-than[Age in days]'
+          ;;
+        export)
+          _arguments "${common[@]}" '--output[Output file]:file:_files'
+          ;;
+        import)
+          _arguments "${common[@]}" \
+            '--zsh[Read a Zsh history file]' \
+            '1:file:_files'
+          ;;
+        init|recent|top|failed|stats|status|pause|resume|doctor)
+          _arguments "${common[@]}"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_zh "$@"

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZH history</title>
+    <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/browse.css" />
+  </head>
+  <body>
+    <a class="skip" href="#search">Skip to search</a>
+    <header class="site-header">
+      <div class="bar">
+        <div class="brand">
+          <img
+            class="mark"
+            src="/static/icon.svg"
+            width="32"
+            height="32"
+            alt="ZH"
+          />
+          <h1>History</h1>
+        </div>
+        <nav class="page-nav" aria-label="Pages">
+          <div class="tabs" role="tablist" aria-label="Page">
+            <button
+              type="button"
+              class="tab"
+              id="view-list"
+              role="tab"
+              aria-selected="true"
+              aria-controls="list-view"
+            >
+              Commands
+            </button>
+            <button
+              type="button"
+              class="tab"
+              id="view-graph"
+              role="tab"
+              aria-selected="false"
+              aria-controls="graph-view"
+              tabindex="-1"
+            >
+              Graph
+            </button>
+          </div>
+        </nav>
+        <button
+          type="button"
+          id="theme-toggle"
+          class="icon-button"
+          aria-pressed="false"
+          aria-label="Dark theme"
+        >
+          <svg
+            class="icon icon-moon"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M15.5 3.2a8.8 8.8 0 1 0 5.6 15.4A8.2 8.2 0 0 1 15.5 3.2z"
+            />
+          </svg>
+          <svg
+            class="icon icon-sun"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3.5" fill="currentColor" />
+            <g
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path
+                d="M12 3v2.2M12 18.8V21M4.8 4.8l1.6 1.6M17.6 17.6l1.6 1.6M3 12h2.2M18.8 12H21M4.8 19.2l1.6-1.6M17.6 6.4l1.6-1.6"
+              />
+            </g>
+          </svg>
+        </button>
+      </div>
+    </header>
+    <main>
+      <p class="lede">
+        Local command journal. Choosing a command does not run it.
+      </p>
+      <form id="search-form" class="toolbar" role="search">
+        <label class="search-field">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <circle
+              cx="11"
+              cy="11"
+              r="6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <path
+              d="M16 16l4 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="sr-only">Search</span>
+          <input
+            id="search"
+            name="q"
+            type="search"
+            placeholder="Search commands"
+            autocomplete="off"
+            enterkeyhint="search"
+            aria-controls="results"
+          />
+          <kbd>/</kbd>
+        </label>
+        <label class="status-field">
+          <span class="sr-only">Status</span>
+          <select id="status" name="status" aria-label="Status">
+            <option value="all">All statuses</option>
+            <option value="failed">Failed</option>
+            <option value="ok">Succeeded</option>
+            <option value="running">Running</option>
+          </select>
+        </label>
+        <div class="time-picker">
+          <button
+            type="button"
+            id="time-button"
+            aria-expanded="false"
+            aria-controls="time-popover"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <circle
+                cx="12"
+                cy="12"
+                r="8"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M12 8v5l3 2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span id="time-button-label">All time</span>
+          </button>
+          <div id="time-popover" class="time-popover" hidden>
+            <div class="quick-ranges" role="group" aria-label="Presets">
+              <button type="button" class="preset" data-preset="hour">
+                Last hour
+              </button>
+              <button type="button" class="preset" data-preset="hours24">
+                Last 24 hours
+              </button>
+              <button type="button" class="preset" data-preset="day">
+                Last day
+              </button>
+              <button type="button" class="preset" data-preset="week">
+                Last 7 days
+              </button>
+              <button
+                type="button"
+                class="preset"
+                data-preset="all"
+                aria-pressed="true"
+              >
+                All time
+              </button>
+            </div>
+            <div class="absolute-range">
+              <p class="absolute-title">Absolute time range</p>
+              <label for="from">From</label>
+              <input id="from" name="from" type="datetime-local" />
+              <label for="to">To</label>
+              <input id="to" name="to" type="datetime-local" />
+              <button type="button" id="apply-range">Apply time range</button>
+            </div>
+          </div>
+        </div>
+      </form>
+      <p id="stats" aria-live="polite"></p>
+      <p id="notice" role="status"></p>
+      <div id="list-view" role="tabpanel" aria-labelledby="view-list">
+        <div class="layout">
+          <section class="panel" aria-label="Results">
+            <div class="panel-bar">
+              <h2>Commands</h2>
+            </div>
+            <ul id="results" role="listbox" aria-label="Commands"></ul>
+            <div class="panel-foot">
+              <button type="button" id="more" class="ghost" hidden>
+                Load more
+              </button>
+            </div>
+          </section>
+          <article id="detail" aria-live="polite">
+            <h2>Details</h2>
+            <p id="detail-empty">Select a command to see its details.</p>
+          </article>
+        </div>
+      </div>
+      <section
+        id="graph-view"
+        class="panel graph-panel"
+        role="tabpanel"
+        aria-labelledby="view-graph"
+        hidden
+      >
+        <div class="panel-bar">
+          <h2>Activity</h2>
+        </div>
+        <div id="graph" class="graph"></div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <p>Stored on this computer. A command is never run from this page.</p>
+      <p id="range-label">All time</p>
+    </footer>
+    <script src="/static/browse.js"></script>
+  </body>
+</html>
