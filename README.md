@@ -2,22 +2,34 @@
 
 ![ZH](src/zh/static/icon.svg)
 
-ZH is a local Zsh command journal. Each interactive command is written to SQLite on this machine. A loopback page can search that journal. Sync to another machine stays off until you configure it. Up, Down, and Ctrl+R keep working as Zsh provides them.
+ZH is a local-first Zsh command journal. Every interactive command is recorded in a local SQLite database without blocking your prompt or altering standard Up, Down, Ctrl+R, or `HISTFILE` behavior.
+
+## Features
+
+- **Local-first storage:** Records commands, exit codes, duration, working directory, Git metadata, and optional environment variables in SQLite (`0600`).
+- **Non-blocking hooks:** `preexec`/`precmd` hooks wait at most 0.2s on SQLite, spool writes when locked, and never wait on the network.
+- **Optional PTY output capture:** Stores gzip-compressed stdout/stderr locally (on by default, configurable and size-limited).
+- **Search & loopback web UI:** Query history from the CLI (FTS5 + optional `fzf`) or inspect activity and outputs in an offline web page via `zh browse`.
+- **Opt-in sync:** Disabled by default; optionally sync across machines via a self-hosted FastAPI and PostgreSQL service.
 
 ## Documentation
 
-- [Install](docs/install.md) covers the Oh My Zsh plugin directory, the pipx install, a shell without Oh My Zsh, tab completion, and uninstall.
-- [Sync](docs/sync.md) covers starting the API, registering a device, and where the tokens and `DATABASE_URL` are stored.
-- [Security](docs/security.md) covers what is stored, output capture, history import, and API authentication.
-- [Release](docs/release.md) lists the checks to run before a release.
+- [Install](docs/install.md) — Oh My Zsh plugin directory, `pipx` install, standalone Zsh setup, tab completion, and uninstall.
+- [Sync](docs/sync.md) — starting `zh-server`, registering a device, and where tokens and `DATABASE_URL` live.
+- [Security](docs/security.md) — stored data, PTY output capture, history import crash window, and API authentication.
+- [Release](docs/release.md) — pre-release verification checklist.
 
 ## Requirements
 
-Python 3.11 or newer, and Zsh. `fzf` is optional and is used only by `zh search --fzf`.
+- **Python 3.11+** and **Zsh**
+- **pipx** (for installing the `zh` CLI into an isolated environment on `PATH`)
+- **fzf** (optional, used only by `zh search --fzf`)
 
-## Install from Git
+The base package has no third-party Python dependencies.
 
-pipx installs the `zh` command into its own environment and links it on `PATH`. That environment is not in the clone, and it is not committed. The clone lives in the Oh My Zsh custom directory. Oh My Zsh loads `$ZSH_CUSTOM/plugins/zh/zh.plugin.zsh`. This repository keeps that file in `zsh/`, beside `hooks.zsh`, `history.zsh`, and `completions/`, so the `zsh` directory is linked as the `zh` plugin. The base package has no third-party dependencies.
+## Install (Oh My Zsh)
+
+`pipx` installs `zh` into `~/.local/bin`, while the repository provides the Zsh plugin under `zsh/` (beside `hooks.zsh`, `history.zsh`, and `completions/`). Cloning into `$ZSH_CUSTOM` and linking `zsh/` as `$ZSH_CUSTOM/plugins/zh` lets Oh My Zsh load `zh.plugin.zsh` directly.
 
 ```bash
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
@@ -29,61 +41,92 @@ pipx install --editable "$ZSH_CUSTOM/zh-zsh-history"
 
 SSH works the same way: `git clone git@github.com:stiliajohny/zh-zsh-history.git "$ZSH_CUSTOM/zh-zsh-history"`.
 
-pipx puts `zh` in `~/.local/bin`. Add the `PATH` line to `~/.zshrc` when that directory is not already on `PATH`. Add `zh` to the existing `plugins=(...)` line. The line below is a stock Oh My Zsh list with `zh` added. Keep any other names already on that line. Do not also `source` the plugin.
+Update `~/.zshrc` to include `~/.local/bin` on `PATH` (if not already present) and add `zh` to your existing `plugins=(...)` list. Do not also `source` the plugin:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 plugins=(git zh)
 ```
 
-Open a new terminal. A new shell records commands only when `zh` is on `PATH`. When `zh` is missing, the hook returns and the shell continues. A shell that does not use Oh My Zsh clones under `~/.local/share` and sources the plugin. Those steps are in [docs/install.md](docs/install.md).
+Open a new terminal. A shell records commands only when `zh` is on `PATH`; if `zh` is missing, the hook returns quietly and the shell continues normally.
 
-`pipx inject zh httpx` adds the sync client. `pipx inject zh fastapi uvicorn httpx 'psycopg[binary]'` adds the API packages. Those match the `sync` and `server` extras. The API is started with `zh-server`.
+> **Not using Oh My Zsh?** Clone under `~/.local/share/zh-zsh-history`, install with `pipx install --editable`, and `source` `zsh/zh.plugin.zsh` in `~/.zshrc`. See [docs/install.md](docs/install.md) for full steps and uninstall instructions.
 
-`zh init` creates the journal. The first recorded command creates it as well. The default path is `$XDG_DATA_HOME/zh/history.sqlite`, or `~/.local/share/zh/history.sqlite` when `XDG_DATA_HOME` is unset. `ZH_DB` or `--db` selects another file. The database file mode is `0600`. A parent directory created for the journal is `0700`.
+### Optional extras & database path
 
-## This checkout
+- **Sync client:** `pipx inject zh httpx` (matches the `sync` extra)
+- **Sync server:** `pipx inject zh fastapi uvicorn httpx 'psycopg[binary]'` (matches the `server` extra; starts with `zh-server`)
+- **Database file:** Created on `zh init` or on the first recorded command at `$XDG_DATA_HOME/zh/history.sqlite` (or `~/.local/share/zh/history.sqlite`). Override with `ZH_DB` or `--db`. Database files use mode `0600` and newly created parent directories use `0700`.
 
-`.venv/` is gitignored. It is only for tests and lint in this repository. Do not put it on `PATH` in `~/.zshrc`. The `dev` extra installs pytest, Ruff 0.17.5, pre-commit, httpx, and FastAPI:
+## Quickstart
+
+After opening a new terminal:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-pre-commit install
+zh search git            # Search recorded commands (alias: zhs git)
+zh search --fzf          # Pick a command interactively with fzf (prints without running)
+zh recent                # Show recent commands (alias: zhr)
+zh stats                 # Summarize command counts (alias: zhy)
+zh show 42 --output      # View captured stdout/stderr for command ID 42
+zh browse                # Open the local web UI at http://127.0.0.1:8765
 ```
 
-`pre-commit install` runs Ruff on staged Python files before each commit and applies Ruff's fixes. The same lint command is `python -m ruff check src tests server`.
+## Shell integration & tab completion
 
-To record commands from this checkout, run `pipx install --editable` on this directory and source `zsh/zh.plugin.zsh` from here.
-
-## Load the plugin
-
-The plugin lasts for the shell that sources it. Sourcing it again in that shell does nothing until `ZH_PLUGIN_LOADED` is unset. `HISTFILE`, keybindings, and existing hooks stay as they are.
-
-Oh My Zsh loads `plugins/zh/zh.plugin.zsh` when `zh` is listed in `plugins`. The install above links the clone's `zsh` directory to that path. The plugin resolves the link and loads `hooks.zsh`, `history.zsh`, and `completions/` from the real directory. Keep `~/.local/bin` on `PATH`. Do not also `source` the plugin.
-
-Aliases `zhs`, `zht`, `zhf`, `zhr`, and `zhy` are defined only when those names are free. They run `zh search`, `zh top`, `zh failed`, `zh recent`, and `zh stats`.
-
-## Tab completion
-
-After the plugin loads, Tab completes `zh`. `zh` then Tab lists the subcommands. `zh search -` then Tab lists that command's flags, including `--status` and `--fzf`. `zh search --status` then Tab lists `all`, `failed`, `ok`, and `running`. `--db` and `--json` complete on every subcommand. The hidden `_hook` command is left out.
-
-If the plugin loads before `compinit`, as Oh My Zsh does, the next new shell completes `zh`. If `compinit` has already run, sourcing the plugin registers the completer in that shell. A second source does nothing, so after the plugin changes run `unset ZH_PLUGIN_LOADED` and source it again. Keybindings and `HISTFILE` stay as they are.
-
-Uninstall steps are in [docs/install.md](docs/install.md).
+- **Single-load guard:** The plugin lasts for the current shell session. Re-sourcing it is a no-op until `ZH_PLUGIN_LOADED` is unset. `HISTFILE`, keybindings, and existing hooks remain unchanged.
+- **Aliases:** `zhs`, `zht`, `zhf`, `zhr`, and `zhy` are defined for `zh search`, `zh top`, `zh failed`, `zh recent`, and `zh stats` only if those names are not already taken.
+- **Tab completion:** `zh <Tab>` lists subcommands (omitting the internal `_hook` command), `zh <subcommand> -<Tab>` lists flags (`--db` and `--json` complete on every subcommand), and `zh search --status <Tab>` lists `all`, `failed`, `ok`, and `running`.
+  - With Oh My Zsh (loaded before `compinit`), completions work in the next new shell.
+  - If `compinit` has already run, sourcing the plugin registers the completer immediately. After editing plugin files, run `unset ZH_PLUGIN_LOADED` and re-source.
 
 ## What gets recorded
 
-On `preexec` the plugin asks `zh` to store the command as it was typed. On `precmd` it stores the exit code captured before other precmd hooks run. A stored row has the command text, start and end time, exit code, duration, working directory, session, hostname, username, and the Git branch and commit when the working directory is inside a repository. Environment values are stored only for names in `env_allowlist`. That list is empty until you add names, so the environment is omitted.
+- **Captured metadata:** On `preexec`, ZH stores the command as typed along with start time, working directory, session ID, hostname, username, and Git branch/commit (when inside a repository). On `precmd`, it records the exit code (captured before other `precmd` hooks run), end time, and duration. Environment variables are recorded only if named in `env_allowlist` (empty by default).
+- **Filtering & reliability:** Commands are skipped when recording is paused (`zh pause`), when empty, when starting with a space (`ignore_space` defaults to `true`), or when matching an `exclude_regex` pattern. If SQLite is locked, writes go to a local spool and flush on a later command. Hooks wait at most 0.2s on the database, never block on network I/O, and disown any background sync kick so Zsh prints no job notice.
+- **Output capture:** On an interactive terminal (`capture_output` defaults to `true`), stdout and stderr are copied through a PTY to a gzip file next to the journal (up to `output_max_bytes`, default `1048576`) without re-running the command. Inspect captures via `zh show ID --output` or `zh browse`. Captured output stays local and is never synced. Non-TTY shells do not capture; full-screen TUI programs can misbehave under PTY capture (`zh config set capture_output false` disables it). Use `zh record -- COMMAND` to capture a single command explicitly. See [docs/security.md](docs/security.md) for limitations and the history-import crash window.
 
-A command is skipped while recording is paused, when it is empty, when it starts with a space (`ignore_space` defaults to true), or when it matches an `exclude_regex` pattern. `zh pause` and `zh resume` stop and start new recording. A locked journal is written to a spool and stored on a later command. The hook waits at most 0.2 seconds on the database and does not wait on the network. A background sync starts only after sync is configured. That process is disowned, so the shell does not print a job line for it.
+## Commands
 
-On a terminal, the plugin also stores that command's stdout and stderr. The shell does not re-run the command. The terminal still shows the full stream. The stored copy is a gzip file next to the journal and stops at `output_max_bytes` (default 1048576). `zh show ID --output` prints one capture, and the history page shows the same text. `zh config set capture_output false` turns capture off. A shell whose stdout is not a terminal does not capture. Output stays on this machine; sync does not upload it. Full-screen programs can misbehave, because their output is a separate PTY while the keyboard stays on your terminal. `zh record -- COMMAND` runs a command only to capture it. Limits and the history-import crash window are in [docs/security.md](docs/security.md).
+Pass `--db PATH` to target another journal, or `--json` for machine-readable output on `search`, `recent`, `top`, `failed`, `stats`, `show`, `status`, and `devices`.
+
+### Search & inspect
+- `zh search [TEXT]` — filter by text, `--status` (`all`, `failed`, `ok`, `running`), `--since`, `--until`, `--device`, `--cwd`, `--exit-code`, and `--limit` (default `20`). Add `--fzf` to print a selection without executing it.
+- `zh recent`, `zh top`, `zh failed`, `zh stats` — summarize the journal.
+- `zh show ID [--output]` — print one command record, or its captured PTY output.
+
+### Web UI
+- `zh browse` — serve the offline loopback page (`--host` defaults to `127.0.0.1` and accepts `127.0.0.1`, `localhost`, or `::1`; `--port` defaults to `8765`; `--db` restricts to that file). Supports searching, exit-status and time-range filtering, and an activity graph. Selecting a command displays or copies it without executing it, and no endpoint writes commands.
+
+### Recording & maintenance
+- `zh init` — create the local journal database.
+- `zh record -- COMMAND` — run a command in a PTY and store its gzip-compressed output.
+- `zh pause` / `zh resume` — stop and restart command recording.
+- `zh import` — read Zsh history (`HISTFILE` or `~/.zsh_history`), `zh import --zsh FILE`, or `zh import FILE` (JSON lines) without executing commands or modifying `HISTFILE`.
+- `zh export [--output FILE]` — write the journal as JSON lines.
+- `zh clean [--older-than DAYS]` — delete commands older than `retention_days` (or `--older-than`), or prune expired synced tombstones when neither is set.
+- `zh doctor` / `zh status` — validate the local install (redacting the device token) and print sync counts.
+
+### Sync
+- `zh devices register|revoke`, `zh sync [install|uninstall]` — manage device credentials, manual sync, and background schedulers. See [docs/sync.md](docs/sync.md).
 
 ## Settings
 
-Config is `ZH_CONFIG`, or `$XDG_CONFIG_HOME/zh/config.json`, or `~/.config/zh/config.json`. The file mode is `0600`. `zh config` prints the settings. A device token is shown as `***`.
+Configuration is stored at `ZH_CONFIG`, `$XDG_CONFIG_HOME/zh/config.json`, or `~/.config/zh/config.json` (mode `0600`). Run `zh config` to print current settings (`device_token` is redacted as `***`).
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `ignore_space` | `true` | Skip commands starting with a space. |
+| `exclude_regex` | `[]` | Regex patterns to exclude before persistence (`set` appends, `unset` removes). |
+| `env_allowlist` | `[]` | Environment variable names to record (`set` appends, `unset` removes). |
+| `retention_days` | `null` | Days to retain commands when running `zh clean`. |
+| `capture_output` | `true` | Capture interactive stdout/stderr locally via PTY. |
+| `output_max_bytes` | `1048576` | Max uncompressed bytes stored per command output capture. |
+| `tombstone_days` | `30` | Days to retain deletion tombstones before pruning. |
+| `sync_batch_size` | `500` | Events per sync batch (clamped between `1` and `500`). |
+
+- `paused` is toggled with `zh pause` and `zh resume`.
+- Sync settings (`sync_enabled`, `server_url`, `device_token`, `device_id`) are populated by `zh devices register`. The bootstrap token and `DATABASE_URL` are not stored in `config.json`.
+- Setting `exclude_regex` prints a reminder that regex filtering cannot guarantee a secret is removed.
 
 ```bash
 zh config get ignore_space
@@ -96,30 +139,28 @@ zh config set capture_output false
 zh config set output_max_bytes 1048576
 ```
 
-`zh config set` on `exclude_regex` or `env_allowlist` appends one entry. `zh config unset` removes that entry. Setting `exclude_regex` prints that a regex cannot guarantee a secret is removed. `zh pause` and `zh resume` are the controls for `paused`. Sync stays off until `sync_enabled`, `server_url`, and a device token are set. `zh devices register` writes those three and stores the device token in this file. The bootstrap token and `DATABASE_URL` are not stored here. Those steps are in [docs/sync.md](docs/sync.md).
-
-## Look up commands
-
-`--db` selects the journal. `--json` prints JSON for `search`, `recent`, `top`, `failed`, `stats`, `show`, `status`, and `devices`.
-
-- `zh search [TEXT]` filters by text, `--status` (`all`, `failed`, `ok`, or `running`), `--since`, `--until`, `--device`, `--cwd`, `--exit-code`, and `--limit` (default 20). `zh search --fzf` prints the selected text and leaves it unexecuted. `fzf` must be installed.
-- `zh recent`, `zh top`, `zh failed`, and `zh stats` summarise the journal.
-- `zh show ID` prints one command. `zh show ID --output` prints a PTY capture stored for that id.
-- `zh browse` serves the loopback page. `--host` defaults to `127.0.0.1` and `--port` defaults to `8765`. Accepted hosts are `127.0.0.1`, `localhost`, and `::1`. The page searches stored commands, filters by exit status and time, and draws a graph of how many commands started in that range. Choosing a command copies or displays it. The page leaves the shell unchanged and has no endpoint that adds a command. `zh browse --db` shows only that file.
-- `zh record -- COMMAND` runs a command in a PTY and stores a gzip capture up to `output_max_bytes` (default 1048576).
-- `zh pause` and `zh resume` stop and start recording.
-- `zh import` reads the current Zsh history (`HISTFILE`, or `~/.zsh_history`). `zh import --zsh FILE` reads that history file. `zh import FILE` reads JSON lines. None of these run the commands or write `HISTFILE`. `zh export` writes JSON lines. `zh export --output FILE` writes that file.
-- `zh clean` deletes commands older than `retention_days` when that setting is a number of days. `zh clean --older-than DAYS` uses that count for this run. With neither value set, it drops tombstones that have already synced and expired.
-- `zh doctor` checks the local journal and redacts the device token. `zh status` prints sync counts.
-- `zh devices register`, `zh devices revoke`, `zh sync`, `zh sync install`, and `zh sync uninstall` are the sync client. See [docs/sync.md](docs/sync.md).
-
 ## Sync and privacy
 
-Sync stays disabled until config says otherwise. Captured output stays on this machine. Filters run before a command is written. After a pull, imported commands can appear in this shell's Up/Down and Ctrl+R list. Commands read from the Zsh history file are not added to that list again. `HISTFILE` stays unchanged. Details are in [docs/sync.md](docs/sync.md) and [docs/security.md](docs/security.md). Release checks are in [docs/release.md](docs/release.md).
+Sync stays off until configured. Captured output remains local, and exclusion filters run before persistence. After a pull, imported remote commands can appear in your shell's Up/Down and Ctrl+R history, whereas rows imported from a local Zsh history file are not re-added to that list. `HISTFILE` is never overwritten. See [docs/sync.md](docs/sync.md), [docs/security.md](docs/security.md), and [docs/release.md](docs/release.md) for details.
 
-## Check a session
+## Development
 
-From this repository, with the virtualenv activated:
+### Local checkout setup
+
+`.venv/` is gitignored and is intended only for running tests and lint in this repository — do not put it on `PATH` in `~/.zshrc`. The `dev` extra installs `pytest`, `ruff` (0.17.5), `pre-commit`, `httpx`, and `fastapi`:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+pre-commit install
+```
+
+`pre-commit install` configures a hook that runs Ruff on staged Python files and applies fixes before each commit. To record commands from a local checkout in your shell, run `pipx install --editable .` and source `zsh/zh.plugin.zsh` from that directory.
+
+### Check a test session
+
+From the repository root with `.venv` active:
 
 ```bash
 source .venv/bin/activate
@@ -129,13 +170,18 @@ source "$PWD/zsh/zh.plugin.zsh"
 echo hello-from-zh
 ```
 
-In another terminal, using the same file:
+In a second terminal using the same database:
 
 ```bash
 source .venv/bin/activate
 zh browse --db /tmp/zh-test.sqlite
 ```
 
-Open `http://127.0.0.1:8765` and reload. `echo hello-from-zh` is in the journal. The load lasts until that shell exits.
+Open `http://127.0.0.1:8765` and reload to see `echo hello-from-zh` in the journal. The plugin stays loaded until that test shell exits.
 
-From the same virtualenv, run `python -m pytest` and `python -m ruff check src tests`.
+### Run tests and lint
+
+```bash
+python -m pytest
+python -m ruff check src tests server
+```

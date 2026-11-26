@@ -339,6 +339,14 @@ Status values: `Planned`, `In Progress`, `Blocked`, `Done`. Each new feature/bug
 - Validation: `.venv/bin/pytest tests/zsh/test_shell_record.py -q` — 4 passed. The new test runs under `script` so job control is on, sees a `done` line for an ordinary background job, and sees no `sync-kick` line after `zh_precmd`. `zsh -n zsh/hooks.zsh` passed. `python -m ruff check tests/zsh/test_shell_record.py` passed.
 - Notes: `&!` disowns the process. Redirecting stdout does not hide Zsh's job report.
 
+**ZH-033: Improve README structure and readability**
+
+- Priority: P2 | Status: Done | Dependencies: ZH-026, ZH-030, ZH-032
+- Scope: Reorganize `README.md` for clarity and scanability: add a brief Features overview and Quickstart, convert dense prose in `What gets recorded`, `Look up commands`, and `Settings` into structured lists and a config table, separate contributor setup (`This checkout` and `Check a session`) into a dedicated Development section at the end, remove duplicated warnings/notes, fix the inconsistent `ruff check` command, and clarify Oh My Zsh vs. standalone installation. Preserve all accurate command, path, completion, and doc-link requirements.
+- Acceptance: `README.md` includes a concise Features list and Quickstart; settings defaults match `src/zh/config.py`; commands and flags match `src/zh/cli.py`; contributor setup sits in a Development section; `ruff check` command consistently includes `src tests server`; all four `docs/` pages remain linked; no redundant duplicate statements remain.
+- Validation: Verified all relative links in `README.md` (`src/zh/static/icon.svg`, `docs/install.md`, `docs/sync.md`, `docs/security.md`, `docs/release.md`) exist on disk, and cross-checked config defaults and CLI subcommands/flags against `src/zh/config.py`, `src/zh/cli.py`, and `pyproject.toml`. `pytest`, `ruff`, and `zsh -n` could not run in this environment (`pytest` module and `zsh` binary are not installed and `.venv` is absent).
+- Notes: Documentation-only update.
+
 ### M5 — Release
 
 **ZH-011: Hardening and release**
@@ -385,6 +393,7 @@ None.
 - ZH-030: Install the plugin under Oh My Zsh custom
 - ZH-031: Hide the sync-kick job report
 - ZH-032: Store command stdout from the plugin
+- ZH-033: Improve README structure and readability
 
 ## Task log
 
@@ -415,6 +424,7 @@ None.
 | 2026-11-19 | ZH-030        | Install the plugin under Oh My Zsh custom   | README.md, docs/install.md, PLAN.md                                                                                                                       | Checked both pages against `zsh/zh.plugin.zsh`. Pytest was not run; the change is documentation.                                                                                                                         | None         |
 | 2026-11-19 | ZH-031        | Hide the sync-kick job report               | zsh/hooks.zsh, tests/zsh/test_shell_record.py, README.md, PLAN.md                                                                                         | `.venv/bin/pytest tests/zsh/test_shell_record.py -q` — 4 passed. `zsh -n zsh/hooks.zsh` passed. Ruff clean for the test file.                                                                                            | None         |
 | 2026-11-19 | ZH-032        | Store command stdout from the plugin        | zsh/hooks.zsh, src/zh/capture.py, cli.py, hooks.py, browser.py, config.py, doctor.py, static/browse.js, tests, README.md, docs/security.md                | `python -m ruff check src tests server` clean. `python -m pytest -q` — 65 passed, 2 skipped. A script session stored stdout and stderr and still showed both.                                                            | None         |
+| 2026-11-26 | ZH-033        | Improve README structure and readability    | README.md, PLAN.md                                                                                                                                        | Verified all 11 relative links in `README.md` exist and checked defaults/flags against `src/zh/config.py` and `src/zh/cli.py`. `pytest`, `ruff`, and `zsh` could not run (not installed in container).                   | None         |
 
 ## Template for newly discovered work
 
